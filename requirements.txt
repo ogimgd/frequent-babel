@@ -1,0 +1,4 @@
+pydub
+pygame
+bark
+scipy
