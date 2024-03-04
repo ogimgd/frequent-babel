@@ -1,43 +1,35 @@
 import os
-from pydub import AudioSegment
-from pydub.generators import Sine
 import pygame
-from bark import SAMPLE_RATE, generate_audio, preload_models
-from scipy.io.wavfile import write as write_wav
+from gtts import gTTS
+from pathlib import Path
 
 '''
 TODO: 
-* Update voice generation to this: https://github.com/coqui-ai/TTS
 * Fetch an image
 * Fetch amount of meanings (how? Cambridge dictionary?)
 * Fetch voices
 * Settings
 '''
 
-preload_models()
-
 pygame.mixer.init()
 
 def synthesize_and_play_sound(word):
 
-    audio_array = generate_audio(word)
+    synthesized_audio = gTTS(text=word)
+    temp_filename_for_audio = ".tmp_audio.mp3"
 
-    # save audio to disk
-    write_wav(f"{word}.wav", SAMPLE_RATE, audio_array)
-    # synthesized_audio = gTTS(text=word, lang='en', tld="us", slow=0.8)
-
-    # # Save the audio to a file (optional)
-    # synthesized_audio.save(f"{word}.mp3")
+    synthesized_audio.save(temp_filename_for_audio)
 
     # Load the MP3 file
-    pygame.mixer.music.load(f"{word}.wav")
-
+    pygame.mixer.music.load(temp_filename_for_audio)
     # Play the MP3 file
     pygame.mixer.music.play()
 
     # Optional: Wait for the song to finish
     while pygame.mixer.music.get_busy():
-        pygame.time.wait(100)
+        pygame.time.wait(50)
+    pygame.mixer.music.unload()
+
 
 # Function to load the history of shown words
 def load_history(filename):
@@ -57,7 +49,11 @@ def save_history(history, filename):
 # Function to prompt user if they know a word and handle their response
 def prompt_user(word):
     while True:
-        response = input(f"\n'{word}'").lower()
+        # A stupid workaround to play the sound earlier than calling input()
+        # But after printing the word
+        print(f"'{word}'") 
+        synthesize_and_play_sound(word)
+        response = input("").lower()
         if response in ["y", "n", ""]:
             return response == "n"
         else:
@@ -73,10 +69,19 @@ def filter_file(file_path, history):
     with open(file_path, "w") as f:
         f.write("".join(new_lines))
 
+def promt_language_choose():
+    response = input("Choose your language (de, eng)").lower()
+    if response in ["de", "eng"]:
+        return response
+    else:
+        print("Please respond with 'de' or 'eng'. That are the only languages availiable.")
+
+
 def main():
-    known_history = load_history("known.txt")
-    unknown_history = load_history("unknown.txt")
-    file_path = "30k.txt"  # Path to your file with 30k most frequent words
+    lang_prefix = promt_language_choose()
+    known_history = load_history(f"known_{lang_prefix}.txt")
+    unknown_history = load_history(f"unknown_{lang_prefix}.txt")
+    file_path = f"words_{lang_prefix}.txt"  # Path to your file with 30k most frequent words
     if not os.path.exists(file_path):
         print("Error: File not found.")
         return
@@ -87,16 +92,14 @@ def main():
             word = line.strip()
             if word in known_history or word in unknown_history:
                 continue
-            synthesize_and_play_sound(word)
             if prompt_user(word):
                 unknown_history.add(word)
-                save_history(unknown_history, "unknown.txt")
+                save_history(unknown_history, f"unknown_{lang_prefix}.txt")
             else:
                 known_history.add(word)
                 filter_file(file_path, known_history)
-                save_history(known_history, "known.txt")
+                save_history(known_history, f"known_{lang_prefix}.txt")
 
-    print("Done.")
 
 if __name__ == "__main__":
     main()
