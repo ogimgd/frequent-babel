@@ -52,7 +52,7 @@ def prompt_user(word):
         # A stupid workaround to play the sound earlier than calling input()
         # But after printing the word
         print(f"'{word}'") 
-        synthesize_and_play_sound(word)
+        # synthesize_and_play_sound(word)
         response = input("").lower()
         if response in ["y", "n", ""]:
             return response == "n"
